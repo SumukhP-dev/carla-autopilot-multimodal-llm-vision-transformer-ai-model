@@ -1,0 +1,12 @@
+# Build images (from repo root of vision-transformer-dashboard):
+#   docker build -t collision-risk-backend:latest ./collision-risk-backend
+#   docker build -t vision-transformer-dashboard:latest .
+# Apply: kubectl apply -k k8s/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: vision-dashboard
+resources:
+  - namespace.yaml
+  - collision-risk-backend.yaml
+  - vision-transformer-dashboard.yaml
+  - ingress.yaml
