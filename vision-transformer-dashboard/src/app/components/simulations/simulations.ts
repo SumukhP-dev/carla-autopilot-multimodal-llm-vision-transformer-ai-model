@@ -157,10 +157,10 @@ export class CarlaSimulationDashboardComponent implements OnInit, OnDestroy {
     this.errorMessage = null;
     const fetchStartTime = Date.now();
     console.log('[Dashboard] ===== loadData() called =====');
-    console.log('[Dashboard] Fetching data from http://localhost:4000/api/simulations');
+    console.log('[Dashboard] Fetching data from /api/simulations');
     console.log('[Dashboard] Current environments count:', this.environments.length);
-    
-    this.http.get<any[]>('http://localhost:4000/api/simulations', {
+
+    this.http.get<any[]>('/api/simulations', {
       observe: 'response',
       headers: {
         'Accept': 'application/json'
