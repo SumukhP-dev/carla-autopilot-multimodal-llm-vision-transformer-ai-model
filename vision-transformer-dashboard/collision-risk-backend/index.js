@@ -246,8 +246,7 @@ app.post('/api/simulations', (req, res) => {
   }
 });
 
-// Start server listening
-const PORT = 4000;
+const PORT = Number(process.env.PORT) || 4000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
 });
