@@ -862,7 +862,9 @@ npm install
 npm start
 ```
 
-Open `http://localhost:4200` to view the dashboard.
+Open `http://localhost:4200` to view the dashboard. The dev server proxies `/api/*` to the backend on port 4000 (`proxy.conf.json`), so the UI uses same-origin `/api/simulations` requests.
+
+For production SSR, Docker images, and Kubernetes manifests (`k8s/`), see **[vision-transformer-dashboard/README.md](vision-transformer-dashboard/README.md)**.
 
 **Quick Start (All Services):**
 
@@ -1168,8 +1170,8 @@ This is a Windows-specific DLL loading issue. Solutions:
 - **Dashboard not updating**:
   - Check browser console (F12) for `[Dashboard]` log messages
   - Verify backend is running on port 4000: `netstat -ano | findstr ":4000"`
-  - Check Network tab in browser DevTools for API requests
-  - Ensure frontend is running on port 4200
+  - In DevTools Network, confirm calls to `/api/simulations` succeed (dev server forwards them to the backend)
+  - Ensure the Angular app is running on port 4200 (`npm start` / `ng serve` in `vision-transformer-dashboard/`)
 - **CORS errors**: Backend has CORS enabled by default, but check if firewall is blocking connections
 - **Timestamp not updating**: Check browser console for errors, verify HTTP requests are being made
 - **No data displayed**: Check if simulator is sending data to backend (check simulator console logs)
