@@ -1,59 +1,108 @@
-# VisionTransformerDashboard
+# Vision Transformer Dashboard
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.2.2.
+Angular 20 application with server-side rendering (SSR). The UI loads simulation metrics from the **collision-risk-backend** Express API. During development and in production, the dashboard calls `/api/...`; the Angular SSR server proxies those requests to the backend (see `src/server.ts` and `proxy.conf.json`).
 
-## Development server
+## Prerequisites
 
-To start a local development server, run:
+- Node.js 20+ and npm
+- Optional: Docker, kubectl, and a Kubernetes cluster (for container deployment)
 
-```bash
-ng serve
-```
+## Install dependencies
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+From this directory:
 
 ```bash
-ng generate component component-name
+npm install
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+The API lives in `collision-risk-backend/`. Install it separately when you run the backend locally:
 
 ```bash
-ng generate --help
+cd collision-risk-backend && npm install && cd ..
 ```
 
-## Building
+## Local development
 
-To build the project run:
+1. Start the API (listens on port **4000** by default):
+
+   ```bash
+   cd collision-risk-backend
+   npm start
+   ```
+
+2. In another terminal, from the dashboard root, start the dev server:
+
+   ```bash
+   ng serve
+   ```
+
+   Open `http://localhost:4200/`. Requests to `/api/*` are proxied to `http://127.0.0.1:4000` via `proxy.conf.json`.
+
+## Production build and SSR server
+
+Build client and server bundles:
 
 ```bash
 ng build
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Run the Node SSR app (use a free port if the API is still on 4000):
 
-## Running unit tests
+```bash
+set PORT=8080
+set COLLISION_RISK_API_URL=http://127.0.0.1:4000
+node dist/vision-transformer-dashboard/server/server.mjs
+```
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+On Linux or macOS, use `export` instead of `set`. In PowerShell, use `$env:PORT=8080` and `$env:COLLISION_RISK_API_URL='http://127.0.0.1:4000'`.
+
+- **`PORT`** — port for the SSR HTTP server (default in code is 4000 if unset).
+- **`COLLISION_RISK_API_URL`** — base URL of the collision-risk API (default `http://127.0.0.1:4000`).
+
+## Docker
+
+Build images from the dashboard root (`vision-transformer-dashboard/`):
+
+```bash
+docker build -t collision-risk-backend:latest ./collision-risk-backend
+docker build -t vision-transformer-dashboard:latest .
+```
+
+The dashboard image sets `PORT=8080` and `COLLISION_RISK_API_URL=http://collision-risk-backend:4000` for use behind Kubernetes service DNS.
+
+## Kubernetes
+
+Manifests and a Kustomize entry point are under `k8s/`. They assume the image tags above exist in the cluster (or on the node, with `imagePullPolicy: IfNotPresent`).
+
+```bash
+kubectl apply -k k8s/
+```
+
+This creates the `vision-dashboard` namespace, deploys both services, and adds an Ingress for host **`vision-dashboard.local`** (point that name at your ingress controller or add a hosts file entry).
+
+Without Ingress, you can port-forward the dashboard service:
+
+```bash
+kubectl port-forward -n vision-dashboard svc/vision-transformer-dashboard 8080:80
+```
+
+Then open `http://localhost:8080/`.
+
+## Code scaffolding
+
+```bash
+ng generate component component-name
+ng generate --help
+```
+
+## Tests
 
 ```bash
 ng test
 ```
 
-## Running end-to-end tests
+End-to-end testing is not configured by default; add a runner that fits your workflow if you need it.
 
-For end-to-end (e2e) testing, run:
+## Additional resources
 
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- [Angular CLI](https://angular.dev/tools/cli)
