@@ -42,9 +42,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    environment:
-      name: Production
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    # No GitHub "environment:" here — it changes the OIDC subject to
+    # repo:ORG/REPO:environment:Production, which must match a federated
+    # credential in Entra ID. Azure Portal defaults use repo:ORG/REPO:ref:refs/heads/main.
 
     steps:
       - name: Download artifact from build job
