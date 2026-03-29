@@ -64,5 +64,6 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: vision-transformer-dashboard
-          slot-name: Production
+          # Omit slot-name to deploy to the default site (production URL).
+          # Named slots (e.g. staging) are optional; "Production" is not a slot name.
           package: .
