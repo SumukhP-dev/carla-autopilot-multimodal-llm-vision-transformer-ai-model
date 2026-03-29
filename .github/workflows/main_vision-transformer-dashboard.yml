@@ -1,5 +1,5 @@
-# Docs: https://github.com/Azure/webapps-deploy
-# Build runs in vision-transformer-dashboard/ — repo root has no package.json.
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
 
 name: Build and deploy Node.js app to Azure Web App - vision-transformer-dashboard
 
@@ -9,61 +9,47 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read #This is required for actions/checkout
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Node.js version
+        uses: actions/setup-node@v3
         with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: vision-transformer-dashboard/package-lock.json
+          node-version: '20.x'
 
-      - name: Install, build, production prune
-        working-directory: vision-transformer-dashboard
+      - name: npm install, build, and test
         run: |
-          npm ci
-          npm run build
-          npm prune --omit=dev
+          npm install
+          npm run build --if-present
+          npm run test --if-present
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: vision-transformer-dashboard
+          path: .
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    # No GitHub "environment:" here — it changes the OIDC subject to
-    # repo:ORG/REPO:environment:Production, which must match a federated
-    # credential in Entra ID. Azure Portal defaults use repo:ORG/REPO:ref:refs/heads/main.
-
+    
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: node-app
-
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_5ACA291F1D374D53B139EF1B4B93C886 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_52C45645CAC0402DA361E703772A5A53 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2D03E0AA9BF7495F907A53B1F3313C79 }}
-
-      - name: Deploy to Azure Web App
+      
+      - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: vision-transformer-dashboard
-          # Omit slot-name to deploy to the default site (production URL).
-          # Named slots (e.g. staging) are optional; "Production" is not a slot name.
+          app-name: 'vision-transformer-dashboard'
+          slot-name: 'Production'
           package: .
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_49C294B5D58A46E1BFEF76B69290BA83 }}
