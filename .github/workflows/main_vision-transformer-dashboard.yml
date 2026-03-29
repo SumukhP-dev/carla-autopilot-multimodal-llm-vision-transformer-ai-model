@@ -4,9 +4,7 @@
 # IMPORTANT: In Azure Deployment Center, do NOT choose "Overwrite the workflow"
 # or this file will be replaced with Azure's default (npm at repo root = ENOENT).
 #
-# Deploy uses a Publish Profile secret (no OIDC client-id/tenant-id required).
-# GitHub → Settings → Secrets → Actions → add AZURE_WEBAPP_PUBLISH_PROFILE:
-#   Azure Portal → your Web App → Get publish profile (downloads XML) → paste entire file.
+# Deploy uses the Publish Profile secret created by Azure Deployment Center.
 
 name: Build and deploy Node.js app to Azure Web App - vision-transformer-dashboard
 
@@ -61,4 +59,4 @@ jobs:
         with:
           app-name: vision-transformer-dashboard
           package: .
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_49C294B5D58A46E1BFEF76B69290BA83 }}
