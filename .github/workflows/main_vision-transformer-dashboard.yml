@@ -3,6 +3,10 @@
 #
 # IMPORTANT: In Azure Deployment Center, do NOT choose "Overwrite the workflow"
 # or this file will be replaced with Azure's default (npm at repo root = ENOENT).
+#
+# Deploy uses a Publish Profile secret (no OIDC client-id/tenant-id required).
+# GitHub → Settings → Secrets → Actions → add AZURE_WEBAPP_PUBLISH_PROFILE:
+#   Azure Portal → your Web App → Get publish profile (downloads XML) → paste entire file.
 
 name: Build and deploy Node.js app to Azure Web App - vision-transformer-dashboard
 
@@ -13,7 +17,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
@@ -45,9 +48,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    # No GitHub "environment:" here — it changes the OIDC subject to
-    # repo:ORG/REPO:environment:Production, which must match a federated
-    # credential in Entra ID. Azure Portal defaults use repo:ORG/REPO:ref:refs/heads/main.
 
     steps:
       - name: Download artifact from build job
@@ -55,16 +55,10 @@ jobs:
         with:
           name: node-app
 
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_5ACA291F1D374D53B139EF1B4B93C886 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_52C45645CAC0402DA361E703772A5A53 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2D03E0AA9BF7495F907A53B1F3313C79 }}
-
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: vision-transformer-dashboard
           package: .
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
