@@ -51,6 +51,7 @@ A sophisticated autonomous driving system that integrates Vision Transformer mod
   - [What You'll See](#what-youll-see)
 - [Testing](#-testing)
   - [Running Tests](#running-tests)
+  - [Load Testing (k6)](#load-testing-k6)
   - [Manual Testing](#manual-testing)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -326,7 +327,7 @@ Generate a JSON object with two keys: "speed" (float in m/s, typically 3-15 m/s)
 
 **Components**:
 
-- **Frontend** (Angular):
+- **Frontend** (Angular 20 + SSR):
   - Simulation metrics visualization
   - Bar charts, pie charts, gauge charts
   - Real-time data updates (refreshes every 1 second)
@@ -338,6 +339,15 @@ Generate a JSON object with two keys: "speed" (float in m/s, typically 3-15 m/s)
   - Endpoint: `/api/simulations`
   - Stores collision and safety metrics
   - CORS enabled for frontend access
+
+**Deployment** (reproducible across environments):
+
+- **Docker**: Separate images for the SSR dashboard and `collision-risk-backend`
+- **Kubernetes**: Kustomize manifests under `vision-transformer-dashboard/k8s/` (namespace `vision-dashboard`, Ingress host `vision-dashboard.local`)
+- **Azure**: GitHub Actions workflow deploys the SSR app to Azure Web App on push to `main`
+- **AWS**: Run the same container images on EKS; point k6 at your ALB/Ingress URL
+
+The SSR server proxies `/api/*` to the backend (`COLLISION_RISK_API_URL`). Use **`http://localhost:8080`** (not `127.0.0.1`) for local SSR to avoid Angular host validation issues.
 
 **Data Flow**:
 
@@ -864,7 +874,18 @@ npm start
 
 Open `http://localhost:4200` to view the dashboard. The dev server proxies `/api/*` to the backend on port 4000 (`proxy.conf.json`), so the UI uses same-origin `/api/simulations` requests.
 
-For production SSR, Docker images, and Kubernetes manifests (`k8s/`), see **[vision-transformer-dashboard/README.md](vision-transformer-dashboard/README.md)**.
+For production SSR, Docker, Kubernetes, and k6 load tests, see **[vision-transformer-dashboard/README.md](vision-transformer-dashboard/README.md)**.
+
+**Production SSR (local):**
+
+```powershell
+cd vision-transformer-dashboard
+npm run build
+$env:PORT = '8080'
+$env:COLLISION_RISK_API_URL = 'http://127.0.0.1:4000'
+npm run start:prod
+# Open http://localhost:8080/
+```
 
 **Quick Start (All Services):**
 
@@ -909,8 +930,10 @@ CARLA_Autopilot_LLM/
 │   ├── datasets/                   # Training/test datasets
 │   └── notebook/                   # Model training notebook
 └── vision-transformer-dashboard/   # Angular dashboard
+    ├── k6/                         # Grafana k6 load tests (100+ users)
+    ├── k8s/                        # Kubernetes manifests
     ├── src/app/                    # Frontend components
-    └── collision-risk-backend/    # Express.js backend
+    └── collision-risk-backend/     # Express.js backend
 ```
 
 ---
@@ -981,8 +1004,11 @@ pdflatex paper.tex
 - **Deep Learning**: TensorFlow/Keras, Vision Transformer
 - **LLM**: Google Gemini 2.5 Flash
 - **Simulation**: CARLA 0.9.16
-- **Frontend**: Angular 20
+- **Frontend**: Angular 20 (SSR)
 - **Backend**: Express.js, Node.js
+- **Containers**: Docker, Kubernetes (Kustomize)
+- **Cloud**: Azure Web App (CI/CD), AWS EKS (same images)
+- **Load testing**: Grafana k6
 - **Testing**: Jasmine/Karma
 - **Audio Processing**: Google Speech Recognition, pydub
 - **Computer Vision**: OpenCV
@@ -1018,6 +1044,8 @@ pdflatex paper.tex
 - ✅ Enhanced logging for debugging (check browser console)
 - ✅ Better error handling and user feedback
 - ✅ Automatic change detection for reliable UI updates
+- ✅ Docker + Kubernetes manifests for reproducible deployments
+- ✅ k6 load tests for 100+ concurrent dashboard users (smoke, sustained, ceiling benchmarks)
 
 ### What You'll See
 
@@ -1046,6 +1074,42 @@ ng test
 cd vision-transformer-dashboard/collision-risk-backend
 npm test
 ```
+
+### Load Testing (k6)
+
+[k6](https://grafana.com/docs/k6/) scenarios live under `vision-transformer-dashboard/k6/`. Install k6, start the SSR stack (API on **4000**, dashboard on **8080**), then run:
+
+```powershell
+cd vision-transformer-dashboard
+$env:BASE_URL = 'http://localhost:8080'
+
+npm run loadtest:smoke      # 1 VU sanity check
+npm run loadtest:dashboard  # 120 viewers + 20 ingest writers (~8 min)
+npm run loadtest:ceiling    # stepped 50→80→100→120 VUs; writes k6-ceiling-report.json
+npm run loadtest:api        # backend-only (port 4000)
+```
+
+| Scenario | Purpose |
+| -------- | ------- |
+| `smoke` | Quick health check (dashboard + `/api/simulations`) |
+| `dashboard-100-users` | 120 concurrent users polling every 1s (production-like) |
+| `dashboard-ceiling` | Finds max VUs per plateau that meet SLOs locally |
+| `api-ingest` | Stresses Express API without SSR |
+
+**SLOs (default thresholds):** &lt;2% HTTP failures, &gt;98% checks passed, p95 &lt; 3s for dashboard routes.
+
+**Other targets:**
+
+```powershell
+$env:K6_TARGET = 'azure'   # https://vision-transformer-dashboard.azurewebsites.net
+$env:K6_TARGET = 'k8s'
+$env:BASE_URL = 'http://vision-dashboard.local'
+npm run loadtest:smoke
+```
+
+CI: run **Actions → k6 dashboard load test** (`workflow_dispatch`) with a custom `base_url`. See `vision-transformer-dashboard/k6/run.ps1` and `k6/docker-compose.k6.yml`.
+
+**Measured on local single-instance SSR (ceiling test, 10 polls/session):** all plateaus through **120 VUs** met SLOs. Sustained **120 simultaneous** users with 30 polls/session showed ~10% errors—scale replicas on K8s/Azure for production targets.
 
 ### Manual Testing
 
@@ -1170,8 +1234,9 @@ This is a Windows-specific DLL loading issue. Solutions:
 - **Dashboard not updating**:
   - Check browser console (F12) for `[Dashboard]` log messages
   - Verify backend is running on port 4000: `netstat -ano | findstr ":4000"`
-  - In DevTools Network, confirm calls to `/api/simulations` succeed (dev server forwards them to the backend)
-  - Ensure the Angular app is running on port 4200 (`npm start` / `ng serve` in `vision-transformer-dashboard/`)
+  - In DevTools Network, confirm calls to `/api/simulations` succeed (dev server or SSR proxy forwards them to the backend)
+  - Dev: Angular on port 4200 (`ng serve`). Production SSR: port 8080 (`npm run start:prod`) — use **`http://localhost:8080`**, not `127.0.0.1`
+- **`/api/simulations` returns 404 through SSR**: Rebuild after pulling; SSR uses `pathFilter: '/api'` for http-proxy-middleware v3 (`src/server.ts`)
 - **CORS errors**: Backend has CORS enabled by default, but check if firewall is blocking connections
 - **Timestamp not updating**: Check browser console for errors, verify HTTP requests are being made
 - **No data displayed**: Check if simulator is sending data to backend (check simulator console logs)

@@ -101,7 +101,21 @@ ng generate --help
 ng test
 ```
 
-End-to-end testing is not configured by default; add a runner that fits your workflow if you need it.
+## Load testing (k6)
+
+Requires [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/). Start the API and SSR server, then from this directory:
+
+```bash
+export BASE_URL=http://localhost:8080   # PowerShell: $env:BASE_URL='http://localhost:8080'
+
+npm run loadtest:smoke
+npm run loadtest:dashboard   # 120 concurrent users
+npm run loadtest:ceiling       # stepped 50→80→100→120; writes k6-ceiling-report.json
+```
+
+Helper scripts: `k6/run.ps1`, `k6/run.sh`. Docker: `docker compose -f k6/docker-compose.k6.yml run --rm k6-smoke`.
+
+See the root [README.md](../README.md#load-testing-k6) for SLOs, Azure/K8s targets, and CI workflow details.
 
 ## Additional resources
 
