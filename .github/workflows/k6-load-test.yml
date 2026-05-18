@@ -1,0 +1,72 @@
+# Manual k6 load test against deployed dashboard (Azure, AWS EKS, or custom URL).
+# Requires the target stack to be reachable from GitHub Actions runners.
+name: k6 dashboard load test
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: k6 scenario to run
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - dashboard
+      target:
+        description: Preset (overridden by base_url when set)
+        required: true
+        default: azure
+        type: choice
+        options:
+          - local
+          - k8s
+          - azure
+          - aws
+          - backend
+      base_url:
+        description: Dashboard base URL (optional override)
+        required: false
+        type: string
+      api_base_url:
+        description: API base URL (optional; defaults to base_url)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Run k6
+        working-directory: vision-transformer-dashboard
+        env:
+          K6_TARGET: ${{ inputs.target }}
+          BASE_URL: ${{ inputs.base_url }}
+          API_BASE_URL: ${{ inputs.api_base_url }}
+        run: |
+          SCENARIO="${{ inputs.scenario }}"
+          case "$SCENARIO" in
+            smoke) FILE="k6/scenarios/smoke.js" ;;
+            dashboard) FILE="k6/scenarios/dashboard-100-users.js" ;;
+          esac
+          k6 run "$FILE" --summary-export "k6-summary-${SCENARIO}.json"
+
+      - name: Upload k6 summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-summary-${{ inputs.scenario }}-${{ github.run_id }}
+          path: vision-transformer-dashboard/k6-summary-*.json
+          if-no-files-found: warn
