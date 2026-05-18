@@ -11,7 +11,11 @@
     "test:watch": "ng test --watch",
     "test:coverage": "ng test --code-coverage",
     "serve:ssr:vision-transformer-dashboard": "node dist/vision-transformer-dashboard/server/server.mjs",
-    "ci:check": "npm ci && npm run build"
+    "ci:check": "npm ci && npm run build",
+    "loadtest:smoke": "k6 run k6/scenarios/smoke.js",
+    "loadtest:dashboard": "k6 run k6/scenarios/dashboard-100-users.js",
+    "loadtest:api": "k6 run k6/scenarios/api-ingest.js",
+    "loadtest:ceiling": "k6 run k6/scenarios/dashboard-ceiling.js"
   },
   "type": "module",
   "prettier": {

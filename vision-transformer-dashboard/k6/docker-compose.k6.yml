@@ -1,0 +1,43 @@
+# Run k6 in Docker against services on the host (local Docker/K8s port-forward).
+#   docker compose -f k6/docker-compose.k6.yml run --rm k6-smoke
+#   K6_TARGET=azure BASE_URL=https://your-app.azurewebsites.net docker compose -f k6/docker-compose.k6.yml run --rm k6-dashboard
+# From vision-transformer-dashboard/: docker compose -f k6/docker-compose.k6.yml run --rm k6-smoke
+services:
+  k6-smoke:
+    image: grafana/k6:0.54.0
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace:ro
+    environment:
+      K6_TARGET: ${K6_TARGET:-local}
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:8080}
+      API_BASE_URL: ${API_BASE_URL:-}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    command: run k6/scenarios/smoke.js
+
+  k6-dashboard:
+    image: grafana/k6:0.54.0
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace:ro
+    environment:
+      K6_TARGET: ${K6_TARGET:-local}
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:8080}
+      API_BASE_URL: ${API_BASE_URL:-}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    command: run k6/scenarios/dashboard-100-users.js
+
+  k6-api:
+    image: grafana/k6:0.54.0
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace:ro
+    environment:
+      K6_TARGET: ${K6_TARGET:-backend}
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:4000}
+      API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:4000}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    command: run k6/scenarios/api-ingest.js
